@@ -1,7 +1,0 @@
-# Ignore environment files
-.env
-.venv
-.ruff_cache
-
-# Ignore node modules
-tamil_eda_platform.egg-info/
