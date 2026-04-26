@@ -1,0 +1,3 @@
+[console_scripts]
+tamil-eda = main:main
+tamil-eda-api = api.routes:start

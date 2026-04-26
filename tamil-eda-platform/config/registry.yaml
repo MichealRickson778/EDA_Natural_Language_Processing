@@ -1,0 +1,28 @@
+# config/registry.yaml
+# Format-to-ingestor routing table.
+# Maps every supported file extension to the Python class that handles it.
+#
+# Format:
+#   extension: module.path.ClassName
+#
+# Rules:
+#   1. Extension must be lowercase, no dot prefix
+#   2. Value must be a fully qualified Python dotted import path
+#   3. Multiple extensions can map to the same class (e.g. jpg, jpeg, png)
+#   4. Adding a new format = add one line here + create the ingestor file
+#   5. bootstrap.py validates every class path at startup — typos fail fast
+#
+# To add a new format:
+#   1. Create ingestion/xml_ingestion.py with class XMLIngestor
+#   2. Add this line: xml: ingestion.xml_ingestion.XMLIngestor
+#   3. Restart the platform — no other changes needed
+
+ingestors:
+  csv:   ingestion.csv_ingestion.CSVIngestor
+  json:  ingestion.json_ingestion.JSONIngestor
+  jsonl: ingestion.json_ingestion.JSONIngestor
+  pdf:   ingestion.pdf_ingestion.PDFIngestor
+  png:   ingestion.image_ingestion.ImageIngestor
+  jpg:   ingestion.image_ingestion.ImageIngestor
+  jpeg:  ingestion.image_ingestion.ImageIngestor
+  txt:   ingestion.txt_ingestion.TXTIngestor

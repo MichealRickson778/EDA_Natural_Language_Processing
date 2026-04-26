@@ -1,0 +1,140 @@
+# Master settings file - safe defaults for every setting in the platform.
+# never override this file directly. use config/environments/dev.yaml.
+#staging.yaml or prod.yaml to override specific values per envioronment.
+# never put passwords, API keys, or secrets in this file - it is in git
+
+platform:
+  name: "tamil-eda-platform"
+  version: "2.0.0"
+  debug: false
+  max_workers: 4
+
+queue:
+  backend: "memory"   # memory | redis
+  redis_url: "redis://localhost:6379"
+  ingestion_queue_max_size: 1000
+  raw_event_queue_max_size: 5000
+  retry_queue_max_size: 1000
+  dead_letter_queue_max_size: 1000
+  poll_interval_s: 0.1
+  drain_timeout_s: 30
+
+storage:
+  input_path: "data/input"
+  output_path: "data/output"
+  parquet_path: "data/parquet"
+  archive_path: "data/archive"
+  compression: "snappy"       # snappy | gzip | none
+  partition_by: "ingested_date"
+  records_per_shard: 100000
+  max_dataset_records: 10000000
+
+translation:
+  default_backend: "google"     # google | deepl | nilb | mock
+  fallback_order:
+    - "deepl"
+    - "nllb"
+  default_target_language: "ta"
+  min_quality_threshold: 0.60
+  max_chars_per_request: 5000
+  timeout_s: 30
+  max_batch_size: 100
+
+language:
+  default_target: "ta"
+  confidence_threshold: 0.85
+  min_sentence_length: 3
+  max_sentence_length: 1000
+
+security:
+  strict_mode: false    # false= warn on threat | true = quarantine and reject
+  rate_limit_enabled: false
+  encrypt_pii: false
+  secret_cache_ttl_s: 300
+
+observability:
+  log_level: "INFO"     # DEBUG | INFO | WARNING |ERROR | CRITICAL
+  metrics_port: 9090
+  trace_enabled: false
+  healthcheck_interval_s: 30
+
+ingestion:
+  streaming_threshold_mb: 100 # files larger than this are streamed, not loaded whole
+  chunk_size: 1000      # rows per chunk when streaming
+  retries: 3
+  debounce_s: 2.0 # secounds to wait after file detected before reading
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  rate_limit_translate: 100     # requests per hour per user
+  rate_limit_submit_job: 1000  # requests per day per user
+  max_retries: 3
+  timeout_s: 10
+  chunk_size: 65536
+     
+
+database:
+  url: "sqlite:///dev.db"     #overide in staging and prod
+  pool_size: 5
+  max_overflow: 10
+  echo: false
+
+redis:
+  host: "localhost"
+  port: 6379
+  db: 0
+  password: null      # set via environment variable or secret reference
+
+vault:
+  addr: "http://127.0.0.1:8200"
+  token: "root"     # dev only - prod uses secret: VAULT_TOKEN
+  cache_ttl_s: 300
+  enabled: false
+
+cloud:
+  service_provider: "azure"     #service for the cloud
+
+triggers:
+  health_check_interval_s: 30
+  max_restart_attempts: 3
+  stop_timeout_s: 10
+  file:
+    debounce_seconds: 2.0
+    min_file_size_bytes: 10
+    dedup_ttl_seconds: 60
+    dedup_cleanup_interval_s: 300
+    supported_formats: ["txt", "csv", "json", "pdf"]
+  scheduler:
+    lag_alert_threshold_s: 60
+    timezone: "UTC"
+
+  
+
+## Four things to understand before you write it
+
+#**1. Every setting has a safe default**
+
+#The rule from the deep-dive doc: defaults must be the most conservative, most secure option. Notice:
+#- `debug: false` — never debug by default
+#- `strict_mode: false` — warn on threats rather than hard-reject, so new developers aren't blocked
+#- `encrypt_pii: false` — no KMS credentials needed out of the box
+#- `backend: "memory"` — no Redis needed out of the box
+
+#The environment files override these to stricter values in production.
+
+#**2. No secrets anywhere in this file**
+
+#Notice `redis.password: null` and `vault.token: "root"` — the root token is only valid for the local dev Vault container. The production vault token is never in this file. It comes from `secret:VAULT_TOKEN` in `prod.yaml`.
+
+#**3. The merge process**
+
+#When you run `python main.py --env dev`:
+#```
+#config.yaml values    ← base layer (everything)
+ #   +
+#dev.yaml values       ← sits on top, same keys override
+ #   =
+#merged dict           ← passed to settings.py for validation
+
+

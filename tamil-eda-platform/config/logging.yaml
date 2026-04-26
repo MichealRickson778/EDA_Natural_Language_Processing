@@ -1,0 +1,90 @@
+# Logging configuration for the Tamil EDA Platform.
+# Read once at startup by bootstrap.py.
+# Applied by observability/logger.py via logging.config.dictConfig().
+#
+# Log levels (most to least verbose):
+#   DEBUG    — every internal operation, variable values, loop iterations
+#   INFO     — normal events, job completions, translation results
+#   WARNING  — unusual but not broken, quality below threshold
+#   ERROR    — something failed, job affected, moved to retry
+#   CRITICAL — platform-level failure, shutting down
+#
+# IMPORTANT:
+#   - DEBUG must never be used in production (exposes PII in raw text)
+#   - audit log is always separate — never mix with regular logs
+#   - backup_count must be >= 1 — zero deletes logs on rotation
+
+
+logging:
+  # Root logger — applies to everything unless overridden below
+  root_level: "INFO"
+
+  # Format — json for production (machine-readable), pretty for development
+  format: "json"      # json | pretty
+
+# output handlers
+handlers:
+  console:
+    enabled: true
+    level: "INFO"
+
+  file:
+    enabled: true
+    level: "INFO"
+    path: "logs/app.log"
+    max_bytes: 100000000      # 100MB before rotation
+    backup_count: 7       # keep 7 roatated files = 7 days history
+
+  audit:
+    enabled: true
+    level: "INFO"
+    path: "logs/audit.log"
+    max_bytes: 100000000
+    backup_count: 365       # keep 1 year of audit logs - compliance requiremnet
+
+  # Component-level overrides
+  # These components can log at a different level than root
+  # Useful for debugging one component without drowning in other logs
+components:
+  translation: "INFO"
+  ingestion: "INFO"
+  validation: "INFO"
+  security: "INFO"
+  dispatcher: "INFO"
+  queue: "INFO"
+  dag: "INFO"
+  api: "INFO"
+
+  # These components always route to the audit log channel
+  # in addition to the regular log
+
+  audit_components:
+    - "security.secrets_manager"
+    - "security.data_classifier"
+    - "security.encryption"
+    - "security.rate_limiter"  
+  # Scrubbing — patterns that get replaced with [REDACTED] in all log output
+  # Protects against accidentally logging API keys or passwords
+
+  scrub_patterns:
+    - "AIza"                  # Google API key prefix
+    - "sk-"                   # OpenAI key prefix
+    - "Bearer "               # Auth header value
+    - "password"              # Any field named password
+    - "secret"                # Any field named secret
+
+## Three things to understand before you write it
+
+#**1. Why audit log has `backup_count: 365` not 7**
+
+#Regular logs are operational — you need them for debugging incidents that happened recently. 7 days is enough. Audit logs are for compliance — "who accessed what secret on what date". A compliance audit can cover the past 12 months. If you only keep 7 days of audit logs, you fail the audit.
+
+#**2. Why `format: json` even though it's harder to read**
+
+#In production, logs go to a log management system like Elasticsearch or CloudWatch. Those systems ingest JSON natively — they can search, filter, and alert on specific fields. Pretty logs look nice in a terminal but are almost impossible to search programmatically:
+#```
+# pretty — nice to read, hard to search
+#2026-03-01 10:23:41 INFO  Job uuid-a1b2 completed in 3.4s
+
+# json — hard to read, easy to search and alert on
+#{"timestamp":"2026-03-01T10:23:41Z","level":"INFO","job_id":"uuid-a1b2","duration_ms":3400} 

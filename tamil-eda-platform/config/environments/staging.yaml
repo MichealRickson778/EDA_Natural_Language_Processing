@@ -1,0 +1,60 @@
+# config/environments/staging.yaml
+# Staging environment overrides.
+# Loaded on top of config/config.yaml when running:
+#   python main.py --env staging
+#
+# Philosophy: staging must behave exactly like production but with
+# test data. If it works in staging, it will work in production.
+# If it breaks in staging, you caught it before real users are affected.
+#
+# Key differences from prod:
+#   - Separate staging database, separate S3 bucket
+#   - Fewer workers to keep costs down
+#   - Same security settings as prod — no shortcuts
+
+platform:
+  debug: false
+  max_workers: 2              # fewer than prod to save cost — still tests concurrency
+
+queue:
+  backend: "redis"            # real Redis — same as production
+  drain_timeout_s: 30
+
+storage:
+  output_path: "data/staging/output"
+  parquet_path: "data/staging/parquet"
+
+translation:
+  default_backend: "google"   # real translation API — same as production
+  fallback_order:
+    - "deepl"
+    - "nllb"
+  timeout_s: 30
+  min_quality_threshold: 0.60 # same as production — no shortcuts
+
+language:
+  confidence_threshold: 0.85  # same as production
+
+security:
+  strict_mode: true           # same as production
+  rate_limit_enabled: true    # same as production
+  encrypt_pii: true           # same as production — tests KMS integration
+
+observability:
+  log_level: "INFO"           # same as production
+  trace_enabled: true         # test tracing works before production
+
+database:
+  url: "secret:STAGING_DB_URL" # real PostgreSQL — separate staging database
+  echo: false
+
+vault:
+  addr: "secret:VAULT_ADDR"
+  token: "secret:VAULT_TOKEN"
+
+api:
+  port: 8000
+
+ingestion:
+  retries: 3                  # same as production
+  debounce_s: 2.0             # same as production

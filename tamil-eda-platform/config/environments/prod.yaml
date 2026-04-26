@@ -1,0 +1,82 @@
+# config/environments/prod.yaml
+# Production environment overrides.
+# Loaded on top of config/config.yaml when running:
+#   python main.py --env prod
+#
+# Philosophy: security over convenience, strictness over forgiveness,
+# explicit over implicit. A wrong setting here affects real users
+# and real data.
+#
+# ABSOLUTE RULES — never break these:
+#   1. No actual passwords, API keys, or tokens — only secret:KEY_NAME
+#   2. debug must always be false
+#   3. translation fallback must never include mock
+#   4. encrypt_pii must always be true
+#   5. Changes require code review — same process as code changes
+#
+# Secret references are resolved at startup by security/secrets_manager.py
+# which retrieves the actual value from HashiCorp Vault or AWS KMS.
+# The actual value never appears in any file.
+
+platform:
+  debug: false
+  max_workers: 8              # tune based on observed production load
+
+queue:
+  backend: "redis"
+  drain_timeout_s: 60         # give workers more time — production jobs are large
+
+storage:
+  output_path: "secret:PROD_OUTPUT_PATH"
+  parquet_path: "secret:PROD_PARQUET_PATH"
+
+translation:
+  default_backend: "google"
+  fallback_order:
+    - "deepl"
+    - "nllb"
+    # mock is deliberately excluded — never allowed in production
+  timeout_s: 60               # longer timeout for real API latency
+  min_quality_threshold: 0.60
+
+language:
+  confidence_threshold: 0.85
+
+security:
+  strict_mode: true           # quarantine threats — never just warn
+  rate_limit_enabled: true
+  encrypt_pii: true           # AES-256-GCM, KMS-managed keys
+
+observability:
+  log_level: "INFO"           # never DEBUG in production — exposes PII
+  metrics_port: 9090
+  trace_enabled: true
+  healthcheck_interval_s: 30
+
+database:
+  url: "secret:PROD_DB_URL"   # never hardcode — resolved from Vault at startup
+  pool_size: 10               # higher pool for production load
+  max_overflow: 20
+  echo: false                 # never log SQL in production
+
+redis:
+  host: "secret:PROD_REDIS_HOST"
+  port: 6379
+  password: "secret:PROD_REDIS_PASSWORD"
+
+vault:
+  addr: "secret:VAULT_ADDR"
+  token: "secret:VAULT_TOKEN"
+  cache_ttl_s: 300
+
+api:
+  port: 8000
+  rate_limit_translate: 100
+  rate_limit_submit_job: 1000
+  ssl_verify: true
+
+ingestion:
+  streaming_threshold_mb: 100
+  chunk_size: 1000
+  retries: 3
+  debounce_s: 2.0

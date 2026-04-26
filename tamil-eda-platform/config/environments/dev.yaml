@@ -1,0 +1,60 @@
+# Development environment overrides.
+# Loaded on top of config/config.yaml when running:
+#   python main.py --env dev
+#
+# Philosophy: a developer should clone the repo, run the platform,
+# and have everything working within minutes — no cloud accounts,
+# no paid API keys, no risk of touching real data.
+#
+# Only keys that differ from config.yaml defaults are listed here.
+# Everything not listed here falls back to config.yaml defaults.
+
+platform:
+  debug: true
+  max_workers: 1              # one job at a time — easier to follow in logs
+
+queue:
+  backend: "memory"           # no Redis needed in dev
+  drain_timeout_s: 3          # shutdown fast — you restart constantly in dev
+
+storage:
+  output_path: "data/dev/output"
+  parquet_path: "data/dev/parquet"
+
+translation:
+  default_backend: "mock"     # no API key needed — returns fake Tamil text
+  fallback_order: []
+  timeout_s: 5                # fail fast in dev — no real API latency
+  min_quality_threshold: 0.30 # lenient in dev — mock translations score low
+
+language:
+  confidence_threshold: 0.50  # lenient in dev — easier to test edge cases
+
+security:
+  strict_mode: false          # warn only — don't block dev workflow
+  rate_limit_enabled: false   # no rate limiting in dev
+  encrypt_pii: false          # no KMS credentials needed in dev
+
+observability:
+  log_level: "DEBUG"          # see everything in dev
+  trace_enabled: false        # no Jaeger needed in dev
+
+database:
+  url: "sqlite:///data/dev.db" # no PostgreSQL needed — SQLite file locally
+  echo: true                   # print all SQL queries in dev — useful for debugging
+
+redis:
+  host: "localhost"
+  port: 6379
+
+vault:
+  addr: "http://127.0.0.1:8200"
+  token: "root"               # dev Vault container default token
+
+api:
+  port: 8000
+  ssl_verify: true
+
+ingestion:
+  retries: 1                  # fail fast in dev — don't retry 3 times
+  debounce_s: 0.5             # shorter debounce — faster feedback in dev
